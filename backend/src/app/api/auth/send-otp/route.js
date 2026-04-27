@@ -1,14 +1,35 @@
-import { NextResponse } from "next/server";
 import supabase from "@/lib/db";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { normalizeEmail, isValidEmail } from "@/lib/auth";
+import { errorResponse, successResponse } from "@/lib/responses";
 
 export async function POST(req) {
   try {
-    const { email } = await req.json();
+    const body = await req.json();
+    const rawEmail = body?.email;
 
-    if (!email) {
-      return NextResponse.json(
-        { success: false, message: "Email required" },
-        { status: 400 }
+    if (typeof rawEmail !== "string" || !rawEmail.trim()) {
+      return errorResponse("Email is required", 400);
+    }
+
+    const email = normalizeEmail(rawEmail);
+
+    if (!isValidEmail(email)) {
+      return errorResponse("Please enter a valid email address", 400);
+    }
+
+    const ipAddress =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+
+    const emailLimit = checkRateLimit(`otp:email:${email}`, 3, 10 * 60 * 1000);
+    const ipLimit = checkRateLimit(`otp:ip:${ipAddress}`, 10, 10 * 60 * 1000);
+
+    if (!emailLimit.allowed || !ipLimit.allowed) {
+      return errorResponse(
+        "Too many OTP requests. Please wait a few minutes and try again.",
+        429
       );
     }
 
@@ -20,21 +41,15 @@ export async function POST(req) {
     });
 
     if (error) {
-      return NextResponse.json(
-        { success: false, message: error.message },
-        { status: 401 }
-      );
+      return errorResponse(error.message, 401);
     }
 
-    return NextResponse.json(
-      { success: true, message: "OTP sent successfully" },
-      { status: 200 }
+    return successResponse(
+      { message: "OTP sent successfully" },
+      200
     );
-
   } catch (error) {
-    return NextResponse.json(
-      { success: false, message: "Server error" },
-      { status: 500 }
-    );
+    console.error("send-otp error", error);
+    return errorResponse("Server error", 500);
   }
 }
