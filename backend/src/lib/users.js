@@ -1,6 +1,6 @@
 import { getDatabaseClient, supabaseAdmin } from "@/lib/db";
 
-const USERS_TABLE = "users";
+const USERS_TABLE = "profile";
 
 function getUsersClient() {
   return getDatabaseClient();
@@ -11,7 +11,7 @@ export async function findUserByEmail(email) {
 
   const { data, error } = await client
     .from(USERS_TABLE)
-    .select("id, email, full_name, mobile, is_verified, created_at")
+    .select("id, name, email, ravji_id, created_at")
     .eq("email", email)
     .maybeSingle();
 
@@ -19,31 +19,22 @@ export async function findUserByEmail(email) {
 }
 
 export async function markUserVerified(email) {
-  const client = getUsersClient();
-
-  const { data, error } = await client
-    .from(USERS_TABLE)
-    .update({ is_verified: true })
-    .eq("email", email)
-    .select("id, email, full_name, mobile, is_verified, created_at")
-    .maybeSingle();
-
-  return { data, error };
+  return findUserByEmail(email);
 }
 
-export async function createUserProfile({ email, fullName }) {
+export async function createUserProfile({ email, fullName, userId }) {
   const client = getUsersClient();
 
   const payload = {
     email,
-    full_name: fullName,
-    is_verified: true
+    name: fullName,
+    ravji_id: userId
   };
 
   const { data, error } = await client
     .from(USERS_TABLE)
     .insert(payload)
-    .select("id, email, full_name, mobile, is_verified, created_at")
+    .select("id, name, email, ravji_id, created_at")
     .single();
 
   return { data, error };
@@ -55,11 +46,11 @@ export async function updateUserProfile({ email, fullName }) {
   const { data, error } = await client
     .from(USERS_TABLE)
     .update({
-      full_name: fullName,
-      is_verified: true
+      name: fullName,
+      updated_at: new Date().toISOString()
     })
     .eq("email", email)
-    .select("id, email, full_name, mobile, is_verified, created_at")
+    .select("id, name, email, ravji_id, created_at")
     .single();
 
   return { data, error };

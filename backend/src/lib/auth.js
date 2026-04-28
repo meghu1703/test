@@ -11,13 +11,13 @@ export function isValidEmail(email) {
 export function getAccessToken(request) {
   const authorization = request.headers.get("authorization") || "";
 
-  if (!authorization.startsWith("Bearer ")) {
-    return null;
+  if (authorization.startsWith("Bearer ")) {
+    const token = authorization.slice("Bearer ".length).trim();
+
+    return token || null;
   }
 
-  const token = authorization.slice("Bearer ".length).trim();
-
-  return token || null;
+  return request.cookies.get("token")?.value || null;
 }
 
 export async function getAuthenticatedUser(request) {

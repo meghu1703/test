@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 
 const defaultOrigins = [
   "http://localhost:3000",
-  "http://localhost:5173",
-  "http://localhost:5500"
+  "https://ai-gw92oeygi-poojasindhi2004s-projects.vercel.app"
 ];
 
 function normalizeOrigin(origin) {

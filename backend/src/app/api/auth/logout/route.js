@@ -1,6 +1,7 @@
 import { getAuthenticatedUser } from "@/lib/auth";
 import { errorResponse, successResponse } from "@/lib/responses";
 import { revokeUserSessions } from "@/lib/users";
+import { cookies } from "next/headers";
 
 export async function POST(req) {
   try {
@@ -17,7 +18,12 @@ export async function POST(req) {
       return errorResponse("Unable to log out", 500);
     }
 
-    return successResponse({ message: "Logged out successfully" }, 200);
+    const response = successResponse({ message: "Logged out successfully" }, 200);
+    const cookieStore = await cookies();
+
+    cookieStore.delete("token");
+
+    return response;
   } catch (error) {
     console.error("logout error", error);
     return errorResponse("Server error", 500);

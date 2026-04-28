@@ -3,18 +3,16 @@ const swaggerJsdoc = require("swagger-jsdoc");
 const options = {
   definition: {
     openapi: "3.0.0",
-
     info: {
-      title: "Auth OTP API Documentation",
+      title: "Auth & Profile API Documentation",
       version: "1.0.0",
       description:
-        "Professional API documentation for OTP Authentication backend.",
+        "API documentation for OTP authentication and user profile endpoints.",
       contact: {
         name: "API Support",
         email: "support@example.com"
       }
     },
-
     servers: [
       {
         url: "https://test-q6ja.onrender.com",
@@ -25,25 +23,18 @@ const options = {
         description: "Local Development Server"
       }
     ],
-
     tags: [
-      {
-        name: "Auth",
-        description: "Authentication APIs"
-      },
-      {
-        name: "Health",
-        description: "Server Health APIs"
-      }
+      { name: "Auth", description: "Authentication APIs" },
+      { name: "Profile", description: "User Profile APIs" },
+      { name: "Health", description: "Server Health APIs" }
     ],
-
     paths: {
       "/api/auth/send-otp": {
         post: {
           tags: ["Auth"],
           summary: "Send OTP",
-          description: "Send one-time password (OTP) to user's email.",
-
+          description: "Send OTP to a user email address.",
+          security: [],
           requestBody: {
             required: true,
             content: {
@@ -54,43 +45,29 @@ const options = {
               }
             }
           },
-
           responses: {
             200: {
               description: "OTP sent successfully",
               content: {
                 "application/json": {
                   schema: {
-                    $ref: "#/components/schemas/SuccessResponse"
+                    $ref: "#/components/schemas/MessageResponse"
                   }
                 }
               }
             },
-
-            400: {
-              description: "Bad Request",
-              content: {
-                "application/json": {
-                  schema: {
-                    $ref: "#/components/schemas/ErrorResponse"
-                  }
-                }
-              }
-            },
-
-            500: {
-              description: "Internal Server Error"
-            }
+            400: { description: "Invalid input" },
+            429: { description: "Too many requests" },
+            500: { description: "Server error" }
           }
         }
       },
-
       "/api/auth/verify-otp": {
         post: {
           tags: ["Auth"],
           summary: "Verify OTP",
-          description: "Verify OTP entered by user.",
-
+          description: "Verify OTP and return the authenticated user session state.",
+          security: [],
           requestBody: {
             required: true,
             content: {
@@ -101,50 +78,129 @@ const options = {
               }
             }
           },
-
           responses: {
             200: {
               description: "OTP verified successfully",
               content: {
                 "application/json": {
                   schema: {
-                    $ref: "#/components/schemas/VerifySuccessResponse"
+                    $ref: "#/components/schemas/VerifyOtpResponse"
                   }
                 }
               }
             },
-
-            401: {
-              description: "Invalid OTP",
-              content: {
-                "application/json": {
-                  schema: {
-                    $ref: "#/components/schemas/ErrorResponse"
-                  }
-                }
-              }
-            },
-
-            500: {
-              description: "Internal Server Error"
-            }
+            400: { description: "Invalid input" },
+            401: { description: "Invalid or expired OTP" },
+            500: { description: "Server error" }
           }
         }
       },
-
-      "/api/health": {
-        get: {
-          tags: ["Health"],
-          summary: "Health Check",
-          description: "Check if server is running.",
-
+      "/api/auth/register": {
+        post: {
+          tags: ["Auth"],
+          summary: "Register or update profile",
+          description: "Creates or updates the authenticated user's profile.",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["name"],
+                  properties: {
+                    name: {
+                      type: "string",
+                      example: "John Doe"
+                    }
+                  }
+                }
+              }
+            }
+          },
           responses: {
             200: {
-              description: "Server running successfully",
+              description: "Profile updated successfully",
               content: {
                 "application/json": {
                   schema: {
-                    $ref: "#/components/schemas/SuccessResponse"
+                    $ref: "#/components/schemas/RegisterResponse"
+                  }
+                }
+              }
+            },
+            201: {
+              description: "Profile created successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/RegisterResponse"
+                  }
+                }
+              }
+            },
+            400: { description: "Invalid input" },
+            401: { description: "Unauthorized" },
+            500: { description: "Server error" }
+          }
+        }
+      },
+      "/api/auth/profile": {
+        get: {
+          tags: ["Profile"],
+          summary: "Get profile",
+          description: "Returns the authenticated user and their profile data.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Profile fetched successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/ProfileResponse"
+                  }
+                }
+              }
+            },
+            401: { description: "Unauthorized" },
+            500: { description: "Server error" }
+          }
+        }
+      },
+      "/api/auth/logout": {
+        post: {
+          tags: ["Auth"],
+          summary: "Logout",
+          description: "Revokes the current session and clears the auth cookie.",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: {
+              description: "Logged out successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/MessageResponse"
+                  }
+                }
+              }
+            },
+            401: { description: "Unauthorized" },
+            500: { description: "Server error" }
+          }
+        }
+      },
+      "/api/test": {
+        get: {
+          tags: ["Health"],
+          summary: "Health check",
+          security: [],
+          responses: {
+            200: {
+              description: "Server running",
+              content: {
+                "application/json": {
+                  schema: {
+                    $ref: "#/components/schemas/MessageResponse"
                   }
                 }
               }
@@ -153,8 +209,14 @@ const options = {
         }
       }
     },
-
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT"
+        }
+      },
       schemas: {
         SendOtpRequest: {
           type: "object",
@@ -162,71 +224,102 @@ const options = {
           properties: {
             email: {
               type: "string",
+              format: "email",
               example: "user@example.com"
             }
           }
         },
-
         VerifyOtpRequest: {
           type: "object",
-          required: ["email", "otp"],
+          required: ["email", "token"],
           properties: {
             email: {
               type: "string",
+              format: "email",
               example: "user@example.com"
             },
-            otp: {
+            token: {
               type: "string",
               example: "123456"
             }
           }
         },
-
-        SuccessResponse: {
+        MessageResponse: {
           type: "object",
           properties: {
-            success: {
-              type: "boolean",
-              example: true
+            success: { type: "boolean", example: true },
+            message: { type: "string", example: "Success" }
+          }
+        },
+        Profile: {
+          type: "object",
+          nullable: true,
+          properties: {
+            id: { type: "string" },
+            name: { type: "string" },
+            email: { type: "string", format: "email" },
+            ravji_id: { type: "string", nullable: true },
+            created_at: { type: "string", format: "date-time" }
+          }
+        },
+        RegisterResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean", example: true },
+            profile: {
+              $ref: "#/components/schemas/Profile"
             },
-            message: {
+            nextStep: {
               type: "string",
-              example: "Success"
+              example: "home"
             }
           }
         },
-
-        VerifySuccessResponse: {
+        ProfileResponse: {
           type: "object",
           properties: {
-            success: {
-              type: "boolean",
-              example: true
+            success: { type: "boolean", example: true },
+            user: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                email: { type: "string", format: "email" }
+              }
             },
-            message: {
-              type: "string",
-              example: "OTP verified successfully"
+            profile: {
+              $ref: "#/components/schemas/Profile"
+            },
+            requiresRegistration: {
+              type: "boolean"
             }
           }
         },
-
-        ErrorResponse: {
+        VerifyOtpResponse: {
           type: "object",
           properties: {
-            success: {
-              type: "boolean",
-              example: false
+            success: { type: "boolean", example: true },
+            user: {
+              type: "object",
+              additionalProperties: true
             },
-            message: {
+            profile: {
+              $ref: "#/components/schemas/Profile"
+            },
+            userExists: {
+              type: "boolean"
+            },
+            requiresRegistration: {
+              type: "boolean"
+            },
+            nextStep: {
               type: "string",
-              example: "Invalid or expired OTP"
+              example: "register"
             }
           }
         }
       }
     }
   },
-
   apis: ["./routes/*.js"]
 };
 

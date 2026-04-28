@@ -11,14 +11,20 @@ export async function POST(req) {
     const { user, error } = await getAuthenticatedUser(req);
 
     if (error || !user?.email) {
-      return errorResponse(error || "Unauthorized", 401);
+      return errorResponse("Unauthorized", 401);
     }
 
-    const body = await req.json();
-    const fullName = body?.full_name?.trim();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return errorResponse("Invalid JSON body", 400);
+    }
 
-    if (!fullName) {
-      return errorResponse("Full name is required", 400);
+    const name = body?.name?.trim?.();
+
+    if (!name) {
+      return errorResponse("Name is required", 400);
     }
 
     const { data: existingUser, error: lookupError } = await findUserByEmail(
@@ -26,19 +32,19 @@ export async function POST(req) {
     );
 
     if (lookupError) {
-      console.error("register lookup error", lookupError);
-      return errorResponse("Unable to load user profile", 500);
+      console.error("lookup error", lookupError);
+      return errorResponse("Database error", 500);
     }
 
     if (existingUser) {
       const { data, error: updateError } = await updateUserProfile({
         email: user.email,
-        fullName
+        fullName: name
       });
 
       if (updateError) {
-        console.error("register update error", updateError);
-        return errorResponse("Unable to update user profile", 500);
+        console.error("update error", updateError);
+        return errorResponse("Unable to update profile", 500);
       }
 
       return successResponse(
@@ -52,12 +58,13 @@ export async function POST(req) {
 
     const { data, error: createError } = await createUserProfile({
       email: user.email,
-      fullName
+      fullName: name,
+      userId: user.id
     });
 
     if (createError) {
-      console.error("register create error", createError);
-      return errorResponse("Unable to create user profile", 500);
+      console.error("create error", createError);
+      return errorResponse("Unable to create profile", 500);
     }
 
     return successResponse(

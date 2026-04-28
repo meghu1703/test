@@ -5,7 +5,13 @@ import { errorResponse, successResponse } from "@/lib/responses";
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return errorResponse("Invalid JSON body", 400);
+    }
+
     const rawEmail = body?.email;
 
     if (typeof rawEmail !== "string" || !rawEmail.trim()) {
