@@ -1,7 +1,6 @@
 import { getAuthenticatedUser } from "@/lib/auth";
 import { errorResponse, successResponse } from "@/lib/responses";
 import { revokeUserSessions } from "@/lib/users";
-import { cookies } from "next/headers";
 
 export async function POST(req) {
   try {
@@ -19,9 +18,13 @@ export async function POST(req) {
     }
 
     const response = successResponse({ message: "Logged out successfully" }, 200);
-    const cookieStore = await cookies();
-
-    cookieStore.delete("token");
+    response.cookies.set("token", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
+      expires: new Date(0)
+    });
 
     return response;
   } catch (error) {

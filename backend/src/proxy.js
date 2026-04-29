@@ -2,11 +2,27 @@ import { NextResponse } from "next/server";
 
 const defaultOrigins = [
   "http://localhost:3000",
-  "https://ai-gw92oeygi-poojasindhi2004s-projects.vercel.app"
+  "https://ai-gw92oeygi-poojasindhi2004s-projects.vercel.app",
+  "https://test-q6ja.onrender.com",
+  "https://ai-pi-inky.vercel.app"
 ];
 
 function normalizeOrigin(origin) {
   return origin.replace(/\/$/, "");
+}
+
+function normalizeConfiguredOrigin(origin) {
+  const value = origin.trim();
+
+  if (!value) {
+    return "";
+  }
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return normalizeOrigin(value);
+  }
+
+  return normalizeOrigin(`https://${value}`);
 }
 
 function getAllowedOrigins() {
@@ -14,11 +30,14 @@ function getAllowedOrigins() {
     process.env.CORS_ALLOWED_ORIGINS,
     process.env.FRONTEND_URL,
     process.env.FRONTEND_ORIGIN,
-    process.env.NEXT_PUBLIC_FRONTEND_URL
+    process.env.NEXT_PUBLIC_FRONTEND_URL,
+    process.env.RENDER_EXTERNAL_URL,
+    process.env.URL,
+    process.env.VERCEL_URL
   ]
     .filter(Boolean)
     .flatMap((value) => value.split(","))
-    .map((value) => normalizeOrigin(value.trim()))
+    .map(normalizeConfiguredOrigin)
     .filter(Boolean);
 
   return new Set([...defaultOrigins, ...configuredOrigins]);
@@ -41,8 +60,13 @@ function applyCorsHeaders(response, origin, requestHeaders) {
 export function proxy(request) {
   const originHeader = request.headers.get("origin");
   const origin = originHeader ? normalizeOrigin(originHeader) : "";
+  const requestOrigin = request.nextUrl?.origin
+    ? normalizeOrigin(request.nextUrl.origin)
+    : "";
   const allowedOrigins = getAllowedOrigins();
-  const isAllowedOrigin = origin ? allowedOrigins.has(origin) : true;
+  const isAllowedOrigin = origin
+    ? origin === requestOrigin || allowedOrigins.has(origin)
+    : true;
   const requestHeaders = request.headers.get("access-control-request-headers");
 
   if (request.method === "OPTIONS") {

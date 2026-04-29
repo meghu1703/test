@@ -18,8 +18,20 @@ export async function findUserByEmail(email) {
   return { data, error };
 }
 
-export async function markUserVerified(email) {
-  return findUserByEmail(email);
+export async function markUserVerified(email, userId) {
+  const client = getUsersClient();
+
+  const { data, error } = await client
+    .from(USERS_TABLE)
+    .update({
+      ravji_id: userId,
+      updated_at: new Date().toISOString()
+    })
+    .eq("email", email)
+    .select("id, name, email, ravji_id, created_at")
+    .single();
+
+  return { data, error };
 }
 
 export async function createUserProfile({ email, fullName, userId }) {

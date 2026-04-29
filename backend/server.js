@@ -6,16 +6,52 @@ const swaggerSpec = require("./src/swagger");
 const app = express();
 
 /* ================= CORS ================= */
-const allowedOrigins = [
+const defaultOrigins = [
   "http://localhost:3000",
-  "https://ai-gw92oeygi-poojasindhi2004s-projects.vercel.app"
+  "https://ai-gw92oeygi-poojasindhi2004s-projects.vercel.app",
+  "https://test-q6ja.onrender.com"
 ];
+
+function normalizeOrigin(origin) {
+  return origin.replace(/\/$/, "");
+}
+
+function normalizeConfiguredOrigin(origin) {
+  const value = origin.trim();
+
+  if (!value) {
+    return "";
+  }
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return normalizeOrigin(value);
+  }
+
+  return normalizeOrigin(`https://${value}`);
+}
+
+const allowedOrigins = new Set([
+  ...defaultOrigins,
+  ...[
+    process.env.CORS_ALLOWED_ORIGINS,
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_ORIGIN,
+    process.env.NEXT_PUBLIC_FRONTEND_URL,
+    process.env.RENDER_EXTERNAL_URL,
+    process.env.URL,
+    process.env.VERCEL_URL
+  ]
+    .filter(Boolean)
+    .flatMap((value) => value.split(","))
+    .map(normalizeConfiguredOrigin)
+    .filter(Boolean)
+]);
 
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.has(normalizeOrigin(origin))) {
       callback(null, true);
     } else {
       callback(new Error("CORS blocked: " + origin));

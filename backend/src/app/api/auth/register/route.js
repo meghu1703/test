@@ -21,10 +21,15 @@ export async function POST(req) {
       return errorResponse("Invalid JSON body", 400);
     }
 
-    const name = body?.name?.trim?.();
+    const rawName = body?.name;
+    const name = typeof rawName === "string" ? rawName.trim() : "";
 
     if (!name) {
       return errorResponse("Name is required", 400);
+    }
+
+    if (name.length > 100) {
+      return errorResponse("Name must be 100 characters or fewer", 400);
     }
 
     const { data: existingUser, error: lookupError } = await findUserByEmail(

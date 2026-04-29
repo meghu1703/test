@@ -1,12 +1,10 @@
 import supabase from "@/lib/db";
-import { findUserByEmail, markUserVerified } from "@/lib/users";
-import { errorResponse, successResponse } from "@/lib/responses";
 import { normalizeEmail, isValidEmail } from "@/lib/auth";
-import { cookies } from "next/headers";
+import { errorResponse, successResponse } from "@/lib/responses";
+import { findUserByEmail, markUserVerified } from "@/lib/users";
 
 export async function POST(req) {
   try {
-    // ✅ Safe JSON parsing
     let body;
     try {
       body = await req.json();
@@ -17,7 +15,6 @@ export async function POST(req) {
     const rawEmail = body?.email;
     const rawToken = body?.token;
 
-    // ✅ Validation
     if (typeof rawEmail !== "string" || !rawEmail.trim()) {
       return errorResponse("Email is required", 400);
     }
@@ -33,35 +30,20 @@ export async function POST(req) {
       return errorResponse("Please enter a valid email address", 400);
     }
 
-    // ✅ OTP format check (6 digit)
     if (!/^\d{6}$/.test(token)) {
       return errorResponse("Invalid OTP format", 400);
     }
 
-    // ✅ FIXED: correct OTP type
     const { data, error } = await supabase.auth.verifyOtp({
       email,
       token,
-      type: "signup" // 🔥 important fix
+      type: "email"
     });
 
     if (error || !data?.user) {
       return errorResponse(error?.message || "Invalid or expired OTP", 401);
     }
 
-    // ✅ Store session in cookie (IMPORTANT for auth persistence)
-    if (data?.session?.access_token) {
-      const cookieStore = await cookies();
-
-      cookieStore.set("token", data.session.access_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        path: "/"
-      });
-    }
-
-    // ✅ Check user in DB
     const { data: existingUser, error: lookupError } = await findUserByEmail(email);
 
     if (lookupError) {
@@ -71,9 +53,11 @@ export async function POST(req) {
 
     let profile = existingUser;
 
-    // ✅ Mark verified if needed
     if (existingUser && !existingUser.ravji_id) {
-      const { data: verifiedUser, error: updateError } = await markUserVerified(email);
+      const { data: verifiedUser, error: updateError } = await markUserVerified(
+        email,
+        data.user.id
+      );
 
       if (updateError) {
         console.error("verify-otp update error", updateError);
@@ -83,8 +67,7 @@ export async function POST(req) {
       profile = verifiedUser;
     }
 
-    // ✅ Final response
-    return successResponse(
+    const response = successResponse(
       {
         user: data.user,
         profile,
@@ -95,6 +78,16 @@ export async function POST(req) {
       200
     );
 
+    if (data.session?.access_token) {
+      response.cookies.set("token", data.session.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        path: "/"
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error("verify-otp error", error);
     return errorResponse("Server error", 500);
